@@ -29,7 +29,7 @@ class ApiPlatformCoreAnnotationGenerator extends AbstractAnnotationGenerator
     {
         $resource = $this->classes[$className]['resource'];
 
-        return [sprintf('@ApiResource(iri="%s")', $resource->getUri())];
+        return [sprintf('@ApiResource(type="%s", iri="%s")', $resource->getUri(),$resource->getUri())];
     }
 
     /**
