@@ -9,49 +9,66 @@
  * file that was distributed with this source code.
  */
 
-namespace ApiPlatform\SchemaGenerator\Tests;
+declare(strict_types=1);
+
+namespace ApiPlatform\SchemaGenerator\Tests\Command;
 
 use ApiPlatform\SchemaGenerator\Command\DumpConfigurationCommand;
+use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
 /**
  * @author Kévin Dunglas <dunglas@gmail.com>
  */
-class DumpConfigurationTest extends \PHPUnit_Framework_TestCase
+class DumpConfigurationTest extends TestCase
 {
     public function testDumpConfiguration()
     {
         $commandTester = new CommandTester(new DumpConfigurationCommand());
         $this->assertEquals(0, $commandTester->execute([]));
-        $this->assertEquals(<<<YAML
+        $this->assertEquals(
+            sprintf(
+                <<<'YAML'
 config:
 
     # RDFa files
     rdfa:
 
-        # RDFa URI to use
-        uri:                  'https://schema.org/docs/schema_org_rdfa.html' # Example: https://schema.org/docs/schema_org_rdfa.html
+        # Prototype
+        -
 
-        # RDFa URI data format
-        format:               null # Example: rdfxml
+            # RDFa URI to use
+            uri:                  %s # Example: https://schema.org/docs/schema_org_rdfa.html
+
+            # RDFa URI data format
+            format:               null # Example: rdfxml
 
     # OWL relation files to use
-    relations:
+    relations:            # Example: https://purl.org/goodrelations/v1.owl
 
         # Default:
-        - https://purl.org/goodrelations/v1.owl
+        - %s
 
     # Debug mode
     debug:                false
 
-    # Automatically add an id field to entities
-    generateId:           true
+    # IDs configuration
+    id:
+
+        # Automatically add an id field to entities
+        generate:             true
+
+        # The ID generation strategy to use ("none" to not let the database generate IDs).
+        generationStrategy:   auto # One of "auto"; "none"; "uuid"; "mongoid"
+
+        # Is the ID writable? Only applicable if "generationStrategy" is "uuid".
+        writable:             false
 
     # Generate interfaces and use Doctrine's Resolve Target Entity feature
     useInterface:         false
 
     # Emit a warning if a property is not derived from GoodRelations
-    checkIsGoodRelations:  false
+    checkIsGoodRelations: false
 
     # A license or any text to use as header of generated files
     header:               false # Example: // (c) Kévin Dunglas <dunglas@gmail.com>
@@ -75,13 +92,25 @@ config:
         useCollection:        true
 
         # The Resolve Target Entity Listener config file pass
-        resolveTargetEntityConfigPath:  null
+        resolveTargetEntityConfigPath: null
+
+    # Symfony Validator Component
+    validator:
+
+        # Generate @Assert\Type annotation
+        assertType:           false
 
     # The value of the phpDoc's @author annotation
     author:               false # Example: Kévin Dunglas <dunglas@gmail.com>
 
     # Visibility of entities fields
     fieldVisibility:      private # One of "private"; "protected"; "public"
+
+    # Set this flag to false to not generate getter, setter, adder and remover methods
+    accessorMethods:      true
+
+    # Set this flag to true to generate fluent setter, adder and remover methods
+    fluentMutatorMethods: false
 
     # Schema.org's types to use
     types:
@@ -112,7 +141,7 @@ config:
                 inheritanceMapping:   null
 
             # The parent class, set to false for a top level class
-            parent:               null
+            parent:               false
 
             # If declaring a custom class, this will be the class from which properties type will be guessed
             guessFrom:            Thing
@@ -139,7 +168,13 @@ config:
                     # Symfony Serialization Groups
                     groups:               []
 
-                    # The property nullable
+                    # Is the property readable?
+                    readable:             true
+
+                    # Is the property writable?
+                    writable:             true
+
+                    # Is the property nullable?
                     nullable:             true
 
                     # The property unique
@@ -156,12 +191,18 @@ config:
 
         # Defaults:
         - ApiPlatform\SchemaGenerator\AnnotationGenerator\PhpDocAnnotationGenerator
-        - ApiPlatform\SchemaGenerator\AnnotationGenerator\ConstraintAnnotationGenerator
         - ApiPlatform\SchemaGenerator\AnnotationGenerator\DoctrineOrmAnnotationGenerator
         - ApiPlatform\SchemaGenerator\AnnotationGenerator\ApiPlatformCoreAnnotationGenerator
+        - ApiPlatform\SchemaGenerator\AnnotationGenerator\ConstraintAnnotationGenerator
+        - ApiPlatform\SchemaGenerator\AnnotationGenerator\SerializerGroupsAnnotationGenerator
 
 
 YAML
-, $commandTester->getDisplay());
+                ,
+                str_replace('generator/data', 'generator/src/../data', realpath(__DIR__.'/../../data/schema.rdfa')),
+                str_replace('generator/data', 'generator/src/../data', realpath(__DIR__.'/../../data/v1.owl'))
+            ),
+            $commandTester->getDisplay()
+        );
     }
 }

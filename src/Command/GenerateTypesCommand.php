@@ -9,12 +9,15 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace ApiPlatform\SchemaGenerator\Command;
 
 use ApiPlatform\SchemaGenerator\CardinalitiesExtractor;
 use ApiPlatform\SchemaGenerator\GoodRelationsBridge;
 use ApiPlatform\SchemaGenerator\TypesGenerator;
 use ApiPlatform\SchemaGenerator\TypesGeneratorConfiguration;
+use Doctrine\Common\Inflector\Inflector;
 use Symfony\Component\Config\Definition\Processor;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -28,29 +31,64 @@ use Symfony\Component\Yaml\Parser;
  *
  * @author Kévin Dunglas <dunglas@gmail.com>
  */
-class GenerateTypesCommand extends Command
+final class GenerateTypesCommand extends Command
 {
+    private const DEFAULT_CONFIG_FILE = 'schema.yaml';
+
     /**
      * {@inheritdoc}
      */
-    protected function configure()
+    protected function configure(): void
     {
         $this
             ->setName('generate-types')
             ->setDescription('Generate types')
             ->addArgument('output', InputArgument::REQUIRED, 'The output directory')
-            ->addArgument('config', InputArgument::OPTIONAL, 'The config file to use');
+            ->addArgument('config', InputArgument::OPTIONAL, 'The config file to use (default to "schema.yaml" in the current directory, will generate all types if no config file exists)');
     }
 
     /**
      * {@inheritdoc}
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output): void
     {
+        $outputDir = $input->getArgument('output');
+        if ($dir = realpath($input->getArgument('output'))) {
+            if (!is_dir($dir)) {
+                throw new \InvalidArgumentException(sprintf('The file "%s" is not a directory.', $dir));
+            }
+
+            if (!is_writable($dir)) {
+                throw new \InvalidArgumentException(sprintf('The "%s" directory is not writable.', $dir));
+            }
+
+            $outputDir = $dir;
+        } elseif (!@mkdir($outputDir, 0777, true)) {
+            throw new \InvalidArgumentException(sprintf('Cannot create the "%s" directory. Check that the parent directory is writable.', $outputDir));
+        } else {
+            $outputDir = realpath($outputDir);
+        }
+
         $configArgument = $input->getArgument('config');
         if ($configArgument) {
+            if (!file_exists($configArgument)) {
+                throw new \InvalidArgumentException(sprintf('The file "%s" doesn\'t exist.', $configArgument));
+            }
+
+            if (!is_file($configArgument)) {
+                throw new \InvalidArgumentException(sprintf('"%s" isn\'t a file.', $configArgument));
+            }
+
+            if (!is_readable($configArgument)) {
+                throw new \InvalidArgumentException(sprintf('The file "%s" isn\'t readable.', $configArgument));
+            }
+
             $parser = new Parser();
             $config = $parser->parse(file_get_contents($configArgument));
+            unset($parser);
+        } elseif (is_readable(self::DEFAULT_CONFIG_FILE)) {
+            $parser = new Parser();
+            $config = $parser->parse(file_get_contents(self::DEFAULT_CONFIG_FILE));
             unset($parser);
         } else {
             $config = [];
@@ -59,7 +97,7 @@ class GenerateTypesCommand extends Command
         $processor = new Processor();
         $configuration = new TypesGeneratorConfiguration();
         $processedConfiguration = $processor->processConfiguration($configuration, [$config]);
-        $processedConfiguration['output'] = realpath($input->getArgument('output'));
+        $processedConfiguration['output'] = $outputDir;
         if (!$processedConfiguration['output']) {
             throw new \RuntimeException('The specified output is invalid');
         }
@@ -84,10 +122,11 @@ class GenerateTypesCommand extends Command
         $goodRelationsBridge = new GoodRelationsBridge($relations);
         $cardinalitiesExtractor = new CardinalitiesExtractor($graphs, $goodRelationsBridge);
 
-        $ucfirstFilter = new \Twig_SimpleFilter('ucfirst', 'ucfirst');
         $loader = new \Twig_Loader_Filesystem(__DIR__.'/../../templates/');
         $twig = new \Twig_Environment($loader, ['autoescape' => false, 'debug' => $processedConfiguration['debug']]);
-        $twig->addFilter($ucfirstFilter);
+        $twig->addFilter(new \Twig_SimpleFilter('ucfirst', 'ucfirst'));
+        $twig->addFilter(new \Twig_SimpleFilter('pluralize', [Inflector::class, 'pluralize']));
+        $twig->addFilter(new \Twig_SimpleFilter('singularize', [Inflector::class, 'singularize']));
 
         if ($processedConfiguration['debug']) {
             $twig->addExtension(new \Twig_Extension_Debug());

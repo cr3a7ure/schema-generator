@@ -9,8 +9,15 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace ApiPlatform\SchemaGenerator;
 
+use ApiPlatform\SchemaGenerator\AnnotationGenerator\ApiPlatformCoreAnnotationGenerator;
+use ApiPlatform\SchemaGenerator\AnnotationGenerator\ConstraintAnnotationGenerator;
+use ApiPlatform\SchemaGenerator\AnnotationGenerator\DoctrineOrmAnnotationGenerator;
+use ApiPlatform\SchemaGenerator\AnnotationGenerator\PhpDocAnnotationGenerator;
+use ApiPlatform\SchemaGenerator\AnnotationGenerator\SerializerGroupsAnnotationGenerator;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
@@ -19,15 +26,23 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
  *
  * @author Kévin Dunglas <dunglas@gmail.com>
  */
-class TypesGeneratorConfiguration implements ConfigurationInterface
+final class TypesGeneratorConfiguration implements ConfigurationInterface
 {
-    const SCHEMA_ORG_RDFA_URL = 'https://schema.org/docs/schema_org_rdfa.html';
-    const GOOD_RELATIONS_OWL_URL = 'https://purl.org/goodrelations/v1.owl';
+    /**
+     * @see https://schema.org/docs/schema_org_rdfa.html
+     */
+    public const SCHEMA_ORG_RDFA_URL = __DIR__.'/../data/schema.rdfa';
+
+    /**
+     * @see https://purl.org/goodrelations/v1.owl
+     */
+    public const GOOD_RELATIONS_OWL_URL = __DIR__.'/../data/v1.owl';
+    public const SCHEMA_ORG_NAMESPACE = 'http://schema.org/';
 
     /**
      * {@inheritdoc}
      */
-    public function getConfigTreeBuilder()
+    public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder();
         $rootNode = $treeBuilder->root('config');
@@ -35,9 +50,7 @@ class TypesGeneratorConfiguration implements ConfigurationInterface
             ->children()
                 ->arrayNode('rdfa')
                     ->info('RDFa files')
-                    ->defaultValue([
-                        ['uri' => self::SCHEMA_ORG_RDFA_URL, 'format' => null],
-                    ])
+                    ->defaultValue([['uri' => self::SCHEMA_ORG_RDFA_URL, 'format' => 'rdfa']])
                     ->beforeNormalization()
                         ->ifArray()
                         ->then(function (array $v) {
@@ -51,18 +64,27 @@ class TypesGeneratorConfiguration implements ConfigurationInterface
                     ->end()
                     ->prototype('array')
                         ->children()
-                            ->scalarNode('uri')->defaultValue(self::SCHEMA_ORG_RDFA_URL)->info('RDFa URI to use')->example(self::SCHEMA_ORG_RDFA_URL)->end()
+                            ->scalarNode('uri')->defaultValue(self::SCHEMA_ORG_RDFA_URL)->info('RDFa URI to use')->example('https://schema.org/docs/schema_org_rdfa.html')->end()
                             ->scalarNode('format')->defaultNull()->info('RDFa URI data format')->example('rdfxml')->end()
                         ->end()
                     ->end()
                 ->end()
                 ->arrayNode('relations')
                     ->info('OWL relation files to use')
+                    ->example('https://purl.org/goodrelations/v1.owl')
                     ->defaultValue([self::GOOD_RELATIONS_OWL_URL])
                     ->prototype('scalar')->end()
                 ->end()
                 ->booleanNode('debug')->defaultFalse()->info('Debug mode')->end()
-                ->booleanNode('generateId')->defaultTrue()->info('Automatically add an id field to entities')->end()
+                ->arrayNode('id')
+                    ->addDefaultsIfNotSet()
+                    ->info('IDs configuration')
+                    ->children()
+                        ->booleanNode('generate')->defaultTrue()->info('Automatically add an id field to entities')->end()
+                        ->enumNode('generationStrategy')->defaultValue('auto')->values(['auto', 'none', 'uuid', 'mongoid'])->info('The ID generation strategy to use ("none" to not let the database generate IDs).')->end()
+                        ->booleanNode('writable')->defaultFalse()->info('Is the ID writable? Only applicable if "generationStrategy" is "uuid".')->end()
+                    ->end()
+                ->end()
                 ->booleanNode('useInterface')->defaultFalse()->info('Generate interfaces and use Doctrine\'s Resolve Target Entity feature')->end()
                 ->booleanNode('checkIsGoodRelations')->defaultFalse()->info('Emit a warning if a property is not derived from GoodRelations')->end()
                 ->scalarNode('header')->defaultFalse()->info('A license or any text to use as header of generated files')->example('// (c) Kévin Dunglas <dunglas@gmail.com>')->end()
@@ -83,8 +105,17 @@ class TypesGeneratorConfiguration implements ConfigurationInterface
                         ->scalarNode('resolveTargetEntityConfigPath')->defaultNull()->info('The Resolve Target Entity Listener config file pass')->end()
                     ->end()
                 ->end()
+                ->arrayNode('validator')
+                    ->addDefaultsIfNotSet()
+                    ->info('Symfony Validator Component')
+                    ->children()
+                        ->booleanNode('assertType')->defaultFalse()->info('Generate @Assert\Type annotation')->end()
+                    ->end()
+                ->end()
                 ->scalarNode('author')->defaultFalse()->info('The value of the phpDoc\'s @author annotation')->example('Kévin Dunglas <dunglas@gmail.com>')->end()
                 ->enumNode('fieldVisibility')->values(['private', 'protected', 'public'])->defaultValue('private')->cannotBeEmpty()->info('Visibility of entities fields')->end()
+                ->booleanNode('accessorMethods')->defaultTrue()->info('Set this flag to false to not generate getter, setter, adder and remover methods')->end()
+                ->booleanNode('fluentMutatorMethods')->defaultFalse()->info('Set this flag to true to generate fluent setter, adder and remover methods')->end()
                 ->arrayNode('types')
                     ->beforeNormalization()
                         ->always()
@@ -102,7 +133,7 @@ class TypesGeneratorConfiguration implements ConfigurationInterface
                     ->useAttributeAsKey('id')
                     ->prototype('array')
                         ->children()
-                            ->scalarNode('vocabularyNamespace')->defaultValue(TypesGenerator::SCHEMA_ORG_NAMESPACE)->info('Namespace of the vocabulary the type belongs to.')->end()
+                            ->scalarNode('vocabularyNamespace')->defaultValue(self::SCHEMA_ORG_NAMESPACE)->info('Namespace of the vocabulary the type belongs to.')->end()
                             ->booleanNode('abstract')->defaultNull()->info('Is the class abstract? (null to guess)')->end()
                             ->booleanNode('embeddable')->defaultFalse()->info('Is the class embeddable?')->end()
                             ->arrayNode('namespaces')
@@ -119,7 +150,7 @@ class TypesGeneratorConfiguration implements ConfigurationInterface
                                     ->scalarNode('inheritanceMapping')->defaultNull()->info('The Doctrine inheritance mapping type (override the guessed one)')->end()
                                 ->end()
                             ->end()
-                            ->scalarNode('parent')->defaultNull()->info('The parent class, set to false for a top level class')->end()
+                            ->scalarNode('parent')->defaultFalse()->info('The parent class, set to false for a top level class')->end()
                             ->scalarNode('guessFrom')->defaultValue('Thing')->info('If declaring a custom class, this will be the class from which properties type will be guessed')->end()
                             ->booleanNode('allProperties')->defaultFalse()->info('Import all existing properties')->end()
                             ->arrayNode('properties')
@@ -145,8 +176,10 @@ class TypesGeneratorConfiguration implements ConfigurationInterface
                                             ->info('Symfony Serialization Groups')
                                             ->prototype('scalar')->end()
                                         ->end()
-                                        ->scalarNode('nullable')->defaultTrue()->info('The property nullable')->end()
-                                        ->scalarNode('unique')->defaultFalse()->info('The property unique')->end()
+                                        ->booleanNode('readable')->defaultTrue()->info('Is the property readable?')->end()
+                                        ->booleanNode('writable')->defaultTrue()->info('Is the property writable?')->end()
+                                        ->booleanNode('nullable')->defaultTrue()->info('Is the property nullable?')->end()
+                                        ->booleanNode('unique')->defaultFalse()->info('The property unique')->end()
                                         ->booleanNode('embedded')->defaultFalse()->info('Is the property embedded?')->end()
                                         ->booleanNode('columnPrefix')->defaultFalse()->info('The property columnPrefix')->end()
                                     ->end()
@@ -158,10 +191,11 @@ class TypesGeneratorConfiguration implements ConfigurationInterface
                 ->arrayNode('annotationGenerators')
                     ->info('Annotation generators to use')
                     ->defaultValue([
-                        'ApiPlatform\SchemaGenerator\AnnotationGenerator\PhpDocAnnotationGenerator',
-                        'ApiPlatform\SchemaGenerator\AnnotationGenerator\ConstraintAnnotationGenerator',
-                        'ApiPlatform\SchemaGenerator\AnnotationGenerator\DoctrineOrmAnnotationGenerator',
-                        'ApiPlatform\SchemaGenerator\AnnotationGenerator\ApiPlatformCoreAnnotationGenerator',
+                        PhpDocAnnotationGenerator::class,
+                        DoctrineOrmAnnotationGenerator::class,
+                        ApiPlatformCoreAnnotationGenerator::class,
+                        ConstraintAnnotationGenerator::class,
+                        SerializerGroupsAnnotationGenerator::class,
                     ])
                     ->prototype('scalar')->end()
                 ->end()

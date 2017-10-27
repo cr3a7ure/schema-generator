@@ -9,6 +9,8 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace ApiPlatform\SchemaGenerator;
 
 /**
@@ -18,27 +20,24 @@ namespace ApiPlatform\SchemaGenerator;
  */
 class CardinalitiesExtractor
 {
-    const CARDINALITY_0_1 = '(0..1)';
-    const CARDINALITY_0_N = '(0..*)';
-    const CARDINALITY_1_1 = '(1..1)';
-    const CARDINALITY_1_N = '(1..*)';
-    const CARDINALITY_N_0 = '(*..0)';
-    const CARDINALITY_N_1 = '(*..1)';
-    const CARDINALITY_N_N = '(*..*)';
-    const CARDINALITY_UNKNOWN = 'unknown';
+    public const CARDINALITY_0_1 = '(0..1)';
+    public const CARDINALITY_0_N = '(0..*)';
+    public const CARDINALITY_1_1 = '(1..1)';
+    public const CARDINALITY_1_N = '(1..*)';
+    public const CARDINALITY_N_0 = '(*..0)';
+    public const CARDINALITY_N_1 = '(*..1)';
+    public const CARDINALITY_N_N = '(*..*)';
+    public const CARDINALITY_UNKNOWN = 'unknown';
 
     /**
      * @var \EasyRdf_Graph[]
      */
     private $graphs;
-    /**
-     * @var GoodRelationsBridge
-     */
+
     private $goodRelationsBridge;
 
     /**
-     * @param \EasyRdf_Graph[]    $graphs
-     * @param GoodRelationsBridge $goodRelationsBridge
+     * @param \EasyRdf_Graph[] $graphs
      */
     public function __construct(array $graphs, GoodRelationsBridge $goodRelationsBridge)
     {
@@ -48,10 +47,8 @@ class CardinalitiesExtractor
 
     /**
      * Extracts cardinality of properties.
-     *
-     * @return array
      */
-    public function extract()
+    public function extract(): array
     {
         $properties = [];
 
@@ -73,7 +70,7 @@ class CardinalitiesExtractor
      *
      * @return string The cardinality
      */
-    private function extractForProperty(\EasyRdf_Resource $property)
+    private function extractForProperty(\EasyRdf_Resource $property): string
     {
         $localName = $property->localName();
         $fromGoodRelations = $this->goodRelationsBridge->extractCardinality($localName);

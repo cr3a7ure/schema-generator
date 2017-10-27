@@ -9,6 +9,8 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace ApiPlatform\SchemaGenerator\AnnotationGenerator;
 
 use ApiPlatform\SchemaGenerator\CardinalitiesExtractor;
@@ -19,12 +21,12 @@ use ApiPlatform\SchemaGenerator\TypesGenerator;
  *
  * @author Andrew Meshchanchuk <andrew.meshchanchuk@gmail.com>>
  */
-class DoctrineMongoDBAnnotationGenerator extends AbstractAnnotationGenerator
+final class DoctrineMongoDBAnnotationGenerator extends AbstractAnnotationGenerator
 {
     /**
      * {@inheritdoc}
      */
-    public function generateClassAnnotations($className)
+    public function generateClassAnnotations(string $className): array
     {
         $class = $this->classes[$className];
 
@@ -38,28 +40,23 @@ class DoctrineMongoDBAnnotationGenerator extends AbstractAnnotationGenerator
             $inheritanceMapping = $class['abstract'] ? '@MongoDB\MappedSuperclass' : '@MongoDB\Document';
         }
 
-        return [
-            '',
-            $inheritanceMapping,
-        ];
+        return ['', $inheritanceMapping];
     }
 
     /**
      * {@inheritdoc}
      */
-    public function generateFieldAnnotations($className, $fieldName)
+    public function generateFieldAnnotations(string $className, string $fieldName): array
     {
-        $this->classes[$className];
         $field = $this->classes[$className]['fields'][$fieldName];
+        if ($field['isId']) {
+            return $this->generateIdAnnotations();
+        }
 
         $annotations = [];
 
         if ($field['isEnum']) {
-            if ($field['isArray']) {
-                $type = 'simple_array';
-            } else {
-                $type = 'string';
-            }
+            $type = $field['isArray'] ? 'simple_array' : 'string';
         } else {
             switch ($field['range']) {
                 case 'Boolean':
@@ -90,17 +87,15 @@ class DoctrineMongoDBAnnotationGenerator extends AbstractAnnotationGenerator
         }
 
         if (isset($type)) {
-            if (!$field['isId']) {
-                $annotation = '@MongoDB\Field';
+            $annotation = '@MongoDB\Field';
 
-                if ($field['isArray']) {
-                    $type = 'collection';
-                }
-
-                $annotation .= sprintf('(type="%s")', $type);
-
-                $annotations[] = $annotation;
+            if ($field['isArray']) {
+                $type = 'collection';
             }
+
+            $annotation .= sprintf('(type="%s")', $type);
+
+            $annotations[] = $annotation;
         } else {
             if ($field['cardinality'] === CardinalitiesExtractor::CARDINALITY_0_1
                 || $field['cardinality'] === CardinalitiesExtractor::CARDINALITY_1_1
@@ -114,17 +109,13 @@ class DoctrineMongoDBAnnotationGenerator extends AbstractAnnotationGenerator
             }
         }
 
-        if ($field['isId']) {
-            $annotations[] = '@MongoDB\Id';
-        }
-
         return $annotations;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function generateUses($className)
+    public function generateUses(string $className): array
     {
         $resource = $this->classes[$className]['resource'];
 
@@ -136,19 +127,29 @@ class DoctrineMongoDBAnnotationGenerator extends AbstractAnnotationGenerator
 
     /**
      * Gets class or interface name to use in relations.
-     *
-     * @param string $range
-     *
-     * @return string
      */
-    private function getRelationName($range)
+    private function getRelationName(string $range): string
     {
         $class = $this->classes[$range];
 
-        if (isset($class['interfaceName'])) {
-            return $class['interfaceName'];
-        }
+        return $class[$range]['interfaceName'] ?? $class['name'];
+    }
 
-        return $class['name'];
+    private function generateIdAnnotations(): array
+    {
+        switch ($this->config['id']['generationStrategy']) {
+            case 'uuid':
+                if ($this->config['id']['writable']) {
+                    return ['@MongoDB\Id(strategy="NONE", type="bin_uuid")'];
+                }
+
+                return ['@MongoDB\Id(strategy="UUID")'];
+            case 'auto':
+                return ['@MongoDB\Id(strategy="INCREMENT")'];
+            case 'mongoid':
+                return ['@MongoDB\Id'];
+            default:
+                return ['@MongoDB\Id(strategy="NONE", type="string")'];
+        }
     }
 }

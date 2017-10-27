@@ -9,6 +9,8 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace ApiPlatform\SchemaGenerator;
 
 /**
@@ -18,18 +20,15 @@ namespace ApiPlatform\SchemaGenerator;
  */
 class GoodRelationsBridge
 {
-    const GOOD_RELATIONS_NAMESPACE = 'http://purl.org/goodrelations/v1#';
-    const RDF_SCHEMA_NAMESPACE = 'http://www.w3.org/2000/01/rdf-schema#';
+    private const GOOD_RELATIONS_NAMESPACE = 'http://purl.org/goodrelations/v1#';
+    private const RDF_SCHEMA_NAMESPACE = 'http://www.w3.org/2000/01/rdf-schema#';
 
     /**
      * @var \SimpleXMLElement[]
      */
-    protected $relations;
+    private $relations;
 
-    /**
-     * @var array
-     */
-    protected static $objectPropertiesTable = [
+    private $objectPropertiesTable = [
         'priceSpecification' => 'hasPriceSpecification',
         'businessFunction' => 'hasBusinessFunction',
         'eligibleCustomerType' => 'eligibleCustomerTypes',
@@ -46,10 +45,8 @@ class GoodRelationsBridge
         'warranty' => 'hasWarrantyPromise',
         'acceptedPaymentMethod' => 'acceptedPaymentMethods',
     ];
-    /**
-     * @var array
-     */
-    protected static $datatypePropertiesTable = [
+
+    private $datatypePropertiesTable = [
         'minPrice' => 'hasMinCurrencyValue',
         'unitCode' => 'hasUnitOfMeasurement',
         'isicV4' => 'hasISICv4',
@@ -78,18 +75,14 @@ class GoodRelationsBridge
         $this->relations = $relations;
 
         foreach ($this->relations as $relation) {
-            $relation->registerXPathNamespace('rdfs', static::RDF_SCHEMA_NAMESPACE);
+            $relation->registerXPathNamespace('rdfs', self::RDF_SCHEMA_NAMESPACE);
         }
     }
 
     /**
      * Checks if a property exists in GoodRelations.
-     *
-     * @param string $id
-     *
-     * @return bool
      */
-    public function exist($id)
+    public function exist(string $id): bool
     {
         foreach ($this->relations as $relation) {
             $result = $relation->xpath(sprintf('//*[@rdf:about="%s"]', $this->getPropertyUrl($id)));
@@ -104,11 +97,9 @@ class GoodRelationsBridge
     /**
      * Extracts cardinality from the Good Relations OWL.
      *
-     * @param string $id
-     *
      * @return string|bool
      */
-    public function extractCardinality($id)
+    public function extractCardinality(string $id)
     {
         foreach ($this->relations as $relation) {
             $result = $relation->xpath(sprintf('//*[@rdf:about="%s"]/rdfs:label', $this->getPropertyUrl($id)));
@@ -123,34 +114,12 @@ class GoodRelationsBridge
     }
 
     /**
-     * Converts Schema.org's id to Good Relations id.
-     *
-     * @param string $id
-     *
-     * @return string
-     */
-    private function convertPropertyId($id)
-    {
-        if (isset(static::$datatypePropertiesTable[$id])) {
-            return static::$datatypePropertiesTable[$id];
-        }
-
-        if (isset(static::$objectPropertiesTable[$id])) {
-            return static::$objectPropertiesTable[$id];
-        }
-
-        return $id;
-    }
-
-    /**
      * Gets a property URL.
-     *
-     * @param string $id
-     *
-     * @return string
      */
-    private function getPropertyUrl($id)
+    private function getPropertyUrl(string $id): string
     {
-        return self::GOOD_RELATIONS_NAMESPACE.$this->convertPropertyId($id);
+        $propertyId = $this->datatypePropertiesTable[$id] ?? $this->objectPropertiesTable[$id] ?? $id;
+
+        return self::GOOD_RELATIONS_NAMESPACE.$propertyId;
     }
 }

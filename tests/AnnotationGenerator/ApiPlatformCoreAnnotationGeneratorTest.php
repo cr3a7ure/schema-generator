@@ -9,16 +9,19 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace ApiPlatform\SchemaGenerator\Tests\AnnotationGenerator;
 
 use ApiPlatform\SchemaGenerator\AnnotationGenerator\ApiPlatformCoreAnnotationGenerator;
 use ApiPlatform\SchemaGenerator\TypesGenerator;
+use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
 /**
  * @author Kévin Dunglas <dunglas@gmail.com>
  */
-class ApiPlatformCoreAnnotationGeneratorTest extends \PHPUnit_Framework_TestCase
+class ApiPlatformCoreAnnotationGeneratorTest extends TestCase
 {
     /**
      * @var ApiPlatformCoreAnnotationGenerator

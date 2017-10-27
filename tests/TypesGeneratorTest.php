@@ -9,34 +9,38 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace ApiPlatform\SchemaGenerator\Tests;
 
 use ApiPlatform\SchemaGenerator\CardinalitiesExtractor;
+use ApiPlatform\SchemaGenerator\GoodRelationsBridge;
 use ApiPlatform\SchemaGenerator\TypesGenerator;
+use ApiPlatform\SchemaGenerator\TypesGeneratorConfiguration;
+use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
 use Psr\Log\NullLogger;
 
 /**
  * @author Teoh Han Hui <teohhanhui@gmail.com>
  */
-class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
+class TypesGeneratorTest extends TestCase
 {
-    public function testGenerate()
+    public function testGenerate(): void
     {
-        $twigProphecy = $this->prophesize('Twig_Environment');
-        $classes = $this->getClasses();
-        foreach ($classes as $class) {
+        $twigProphecy = $this->prophesize(\Twig_Environment::class);
+        foreach ($this->getClasses() as $class) {
             $twigProphecy->render('class.php.twig', Argument::that($this->getContextMatcher($class)))->willReturn()->shouldBeCalled();
         }
         $twigProphecy->render('class.php.twig', Argument::type('array'))->willReturn();
         $twig = $twigProphecy->reveal();
 
-        $cardinalitiesExtractorProphecy = $this->prophesize('ApiPlatform\SchemaGenerator\CardinalitiesExtractor');
+        $cardinalitiesExtractorProphecy = $this->prophesize(CardinalitiesExtractor::class);
         $cardinalities = $this->getCardinalities();
         $cardinalitiesExtractorProphecy->extract()->willReturn($cardinalities)->shouldBeCalled();
         $cardinalitiesExtractor = $cardinalitiesExtractorProphecy->reveal();
 
-        $goodRelationsBridgeProphecy = $this->prophesize('ApiPlatform\SchemaGenerator\GoodRelationsBridge');
+        $goodRelationsBridgeProphecy = $this->prophesize(GoodRelationsBridge::class);
         $goodRelationsBridge = $goodRelationsBridgeProphecy->reveal();
 
         $typesGenerator = new TypesGenerator($twig, new NullLogger(), $this->getGraphs(), $cardinalitiesExtractor, $goodRelationsBridge);
@@ -44,7 +48,7 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
         $typesGenerator->generate($this->getConfig());
     }
 
-    private function getGraphs()
+    private function getGraphs(): array
     {
         $graph = new \EasyRdf_Graph();
 
@@ -97,15 +101,10 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
         $graph->addResource('http://schema.org/sharedContent', 'schema:domainIncludes', 'http://schema.org/SocialMediaPosting');
         $graph->addResource('http://schema.org/sharedContent', 'schema:rangeIncludes', 'http://schema.org/CreativeWork');
 
-        return [
-            $graph,
-        ];
+        return [$graph];
     }
 
-    /**
-     * @return array
-     */
-    private function getCardinalities()
+    private function getCardinalities(): array
     {
         return [
             'articleBody' => CardinalitiesExtractor::CARDINALITY_0_1,
@@ -119,10 +118,7 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
         ];
     }
 
-    /**
-     * @return array
-     */
-    private function getConfig()
+    private function getConfig(): array
     {
         return [
             'annotationGenerators' => [
@@ -139,7 +135,7 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'articleBody' => null,
                         'articleSection' => null,
                     ],
-                    'vocabularyNamespace' => TypesGenerator::SCHEMA_ORG_NAMESPACE,
+                    'vocabularyNamespace' => TypesGeneratorConfiguration::SCHEMA_ORG_NAMESPACE,
                 ],
                 'CreativeWork' => [
                     'allProperties' => false,
@@ -152,36 +148,41 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'headline' => null,
                         'isFamilyFriendly' => null,
                     ],
-                    'vocabularyNamespace' => TypesGenerator::SCHEMA_ORG_NAMESPACE,
+                    'vocabularyNamespace' => TypesGeneratorConfiguration::SCHEMA_ORG_NAMESPACE,
                 ],
                 'BlogPosting' => [
                     'allProperties' => true,
                     'properties' => null,
-                    'vocabularyNamespace' => TypesGenerator::SCHEMA_ORG_NAMESPACE,
+                    'vocabularyNamespace' => TypesGeneratorConfiguration::SCHEMA_ORG_NAMESPACE,
                 ],
                 'Person' => [
                     'allProperties' => false,
                     'properties' => [],
-                    'vocabularyNamespace' => TypesGenerator::SCHEMA_ORG_NAMESPACE,
+                    'vocabularyNamespace' => TypesGeneratorConfiguration::SCHEMA_ORG_NAMESPACE,
                 ],
                 'SocialMediaPosting' => [
                     'allProperties' => true,
-                    'vocabularyNamespace' => TypesGenerator::SCHEMA_ORG_NAMESPACE,
+                    'vocabularyNamespace' => TypesGeneratorConfiguration::SCHEMA_ORG_NAMESPACE,
                 ],
                 'Thing' => [
                     'allProperties' => true,
-                    'vocabularyNamespace' => TypesGenerator::SCHEMA_ORG_NAMESPACE,
+                    'vocabularyNamespace' => TypesGeneratorConfiguration::SCHEMA_ORG_NAMESPACE,
                 ],
             ],
-            'generateId' => true,
+            'id' => [
+                'generate' => true,
+                'generationStrategy' => 'auto',
+                'writable' => false,
+            ],
             'useInterface' => false,
+            'doctrine' => [
+                'useCollection' => true,
+                'resolveTargetEntityConfigPath' => null,
+            ],
         ];
     }
 
-    /**
-     * @return array
-     */
-    private function getClasses()
+    private function getClasses(): array
     {
         return [
             'Article' => [
@@ -194,6 +195,8 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'isCustom' => false,
                         'isEnum' => false,
                         'isId' => false,
+                        'isReadable' => true,
+                        'isWritable' => true,
                         'isNullable' => true,
                         'isUnique' => false,
                         'name' => 'articleBody',
@@ -205,6 +208,8 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'isCustom' => false,
                         'isEnum' => false,
                         'isId' => false,
+                        'isReadable' => true,
+                        'isWritable' => true,
                         'isNullable' => true,
                         'isUnique' => false,
                         'name' => 'articleSection',
@@ -227,6 +232,8 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'isCustom' => true,
                         'isEnum' => false,
                         'isId' => true,
+                        'isReadable' => true,
+                        'isWritable' => true,
                         'isNullable' => false,
                         'isUnique' => false,
                         'name' => 'id',
@@ -249,6 +256,8 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'isCustom' => false,
                         'isEnum' => false,
                         'isId' => false,
+                        'isReadable' => true,
+                        'isWritable' => true,
                         'isNullable' => true,
                         'isUnique' => false,
                         'name' => 'author',
@@ -260,6 +269,8 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'isCustom' => false,
                         'isEnum' => false,
                         'isId' => false,
+                        'isReadable' => true,
+                        'isWritable' => true,
                         'isNullable' => true,
                         'isUnique' => false,
                         'name' => 'datePublished',
@@ -271,6 +282,8 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'isCustom' => false,
                         'isEnum' => false,
                         'isId' => false,
+                        'isReadable' => true,
+                        'isWritable' => true,
                         'isNullable' => true,
                         'isUnique' => false,
                         'name' => 'headline',
@@ -282,6 +295,8 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'isCustom' => false,
                         'isEnum' => false,
                         'isId' => false,
+                        'isReadable' => true,
+                        'isWritable' => true,
                         'isNullable' => true,
                         'isUnique' => false,
                         'name' => 'isFamilyFriendly',
@@ -304,6 +319,8 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'isCustom' => true,
                         'isEnum' => false,
                         'isId' => true,
+                        'isReadable' => true,
+                        'isWritable' => true,
                         'isNullable' => false,
                         'isUnique' => false,
                         'name' => 'id',
@@ -326,6 +343,8 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'isCustom' => false,
                         'isEnum' => false,
                         'isId' => false,
+                        'isReadable' => true,
+                        'isWritable' => true,
                         'isNullable' => true,
                         'isUnique' => false,
                         'name' => 'sharedContent',
@@ -348,6 +367,8 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                         'isCustom' => false,
                         'isEnum' => false,
                         'isId' => false,
+                        'isReadable' => true,
+                        'isWritable' => true,
                         'isNullable' => true,
                         'isUnique' => false,
                         'name' => 'name',
@@ -378,25 +399,23 @@ class TypesGeneratorTest extends \PHPUnit_Framework_TestCase
                 return false;
             }
 
-            $baseClass = array_diff_key($class, [
-                'fields' => null,
-            ]);
+            $baseClass = $class;
+            unset($baseClass['fields']);
 
-            if (!isset($context['class']) || !is_array($context['class']) || $baseClass != array_intersect_key($context['class'], $baseClass)) {
+            if (!isset($context['class']) || !is_array($context['class']) || $this->arrayEqual($baseClass, array_intersect_key($context['class'], $baseClass))) {
                 return false;
             }
 
-            if (array_keys($class['fields']) != array_keys($context['class']['fields'])) {
+            if (array_keys($class['fields']) === array_keys($context['class']['fields'])) {
                 return false;
-            }
-
-            foreach ($class['fields'] as $fieldName => $field) {
-                if ($field != array_intersect_key($context['class']['fields'][$fieldName], $field)) {
-                    return false;
-                }
             }
 
             return true;
         };
+    }
+
+    private function arrayEqual(array $a, array $b): bool
+    {
+        return count($a) === count($b) && !array_diff($a, $b);
     }
 }

@@ -9,8 +9,12 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace ApiPlatform\SchemaGenerator\AnnotationGenerator;
 
+use ApiPlatform\Core\Annotation\ApiProperty;
+use ApiPlatform\Core\Annotation\ApiResource;
 use ApiPlatform\SchemaGenerator\TypesGenerator;
 
 /**
@@ -18,14 +22,14 @@ use ApiPlatform\SchemaGenerator\TypesGenerator;
  *
  * @author Kévin Dunglas <dunglas@gmail.com>
  *
- * @link https://github.com/api-platform/core
+ * @see https://github.com/api-platform/core
  */
-class ApiPlatformCoreAnnotationGenerator extends AbstractAnnotationGenerator
+final class ApiPlatformCoreAnnotationGenerator extends AbstractAnnotationGenerator
 {
     /**
      * {@inheritdoc}
      */
-    public function generateClassAnnotations($className)
+    public function generateClassAnnotations(string $className): array
     {
         $resource = $this->classes[$className]['resource'];
 
@@ -35,7 +39,7 @@ class ApiPlatformCoreAnnotationGenerator extends AbstractAnnotationGenerator
     /**
      * {@inheritdoc}
      */
-    public function generateFieldAnnotations($className, $fieldName)
+    public function generateFieldAnnotations(string $className, string $fieldName): array
     {
         return $this->classes[$className]['fields'][$fieldName]['isCustom'] ? [] : [sprintf('@ApiProperty(iri="http://schema.org/%s")', $fieldName)];
     }
@@ -43,13 +47,13 @@ class ApiPlatformCoreAnnotationGenerator extends AbstractAnnotationGenerator
     /**
      * {@inheritdoc}
      */
-    public function generateUses($className)
+    public function generateUses(string $className): array
     {
         $resource = $this->classes[$className]['resource'];
 
         $subClassOf = $resource->get('rdfs:subClassOf');
         $typeIsEnum = $subClassOf && $subClassOf->getUri() === TypesGenerator::SCHEMA_ORG_ENUMERATION;
 
-        return $typeIsEnum ? [] : ['ApiPlatform\Core\Annotation\ApiResource', 'ApiPlatform\Core\Annotation\ApiProperty'];
+        return $typeIsEnum ? [] : [ApiResource::class, ApiProperty::class];
     }
 }

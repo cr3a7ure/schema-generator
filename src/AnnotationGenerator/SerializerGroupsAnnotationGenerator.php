@@ -9,38 +9,43 @@
  * file that was distributed with this source code.
  */
 
+declare(strict_types=1);
+
 namespace ApiPlatform\SchemaGenerator\AnnotationGenerator;
+
+use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
  * Symfony Serializer Groups annotation generator.
  *
  * @author Youssef El Montaser <youssef@elmontaser.com>
+ * @author Kévin Dunglas <dunglas@gmail.com>
  *
- * @link https://symfony.com/doc/master/components/serializer.html
+ * @see https://symfony.com/doc/master/components/serializer.html
  */
-class SerializerGroupsAnnotationGenerator extends AbstractAnnotationGenerator
+final class SerializerGroupsAnnotationGenerator extends AbstractAnnotationGenerator
 {
     /**
      * {@inheritdoc}
      */
-    public function generateFieldAnnotations($className, $fieldName)
+    public function generateFieldAnnotations(string $className, string $fieldName): array
     {
-        $annotations = [];
-
-        $properties = $this->config['types'][$className]['properties'];
-
-        if (false === $this->classes[$className]['fields'][$fieldName]['isId'] && $groups = $properties[$fieldName]['groups']) {
-            $annotations[] = sprintf('@Groups({"%s"})', implode('","', $groups));
+        if (null === $field = $this->config['types'][$className]['properties'] ?? null) {
+            return [];
         }
 
-        return $annotations;
+        if (false === $this->classes[$className]['fields'][$fieldName]['isId'] && $groups = $field[$fieldName]['groups'] ?? false) {
+            return [sprintf('@Groups({"%s"})', implode('", "', $groups))];
+        }
+
+        return [];
     }
 
     /**
      * {@inheritdoc}
      */
-    public function generateUses($className)
+    public function generateUses(string $className): array
     {
-        return ['Symfony\Component\Serializer\Annotation\Groups'];
+        return [Groups::class];
     }
 }

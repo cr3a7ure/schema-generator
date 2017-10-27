@@ -18,27 +18,26 @@
         "psr-4": { "ApiPlatform\\SchemaGenerator\\Tests\\": "tests/" }
     },
     "require": {
-        "php": ">=5.4",
-        "ext-json": "*",
-        "symfony/console": "^2.7 || ^3.0",
-        "symfony/yaml": "^2.7 || ^3.0",
-        "symfony/config": "^2.7 || ^3.0",
-        "twig/twig": "^1.0",
-        "psr/log": "^1.0",
+        "php": ">=7.1",
+        "doctrine/inflector": "^1.0",
         "easyrdf/easyrdf": "^0.9",
+        "ext-json": "*",
+        "friendsofphp/php-cs-fixer": "^2.4",
         "league/html-to-markdown": "^4.0",
-        "friendsofphp/php-cs-fixer": "^1.12"
+        "psr/log": "^1.0",
+        "symfony/config": "^3.3 || ^4.0",
+        "symfony/console": "^2.7 || ^3.0 || ^4.0",
+        "symfony/yaml": "^2.7 || ^3.0 || ^4.0",
+        "twig/twig": "^1.12 || ^2.0"
     },
     "require-dev": {
+        "api-platform/core": "^2.0",
         "doctrine/orm": "^2.2",
-        "symfony/validator": "^2.7",
-        "symfony/filesystem": "^2.7"
-    },
-    "suggest": {
-        "myclabs/php-enum": "For enumerations",
-        "doctrine/collections": "For Doctrine collections",
-        "doctrine/orm": "For Doctrine annotations",
-        "symfony/validator": "For constraint annotations"
+        "myclabs/php-enum": "^1.0",
+        "symfony/doctrine-bridge": "^2.7 || ^3.0 || ^4.0",
+        "symfony/filesystem": "^2.7 || ^3.0 || ^4.0",
+        "symfony/serializer": "^2.7 || ^3.0 || ^4.0",
+        "symfony/validator": "^2.7 || ^3.0 || ^4.0"
     },
     "bin": ["bin/schema"]
 }

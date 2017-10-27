@@ -1,5 +1,10 @@
 {
-  "directories": ["src/"],
+  "base-path": "build/schema-generator",
+  "directories": [
+    "data/",
+    "src/",
+    "templates/"
+  ],
   "finder": [
     {
       "name": "*.php",
@@ -11,7 +16,7 @@
         "Tests",
         "tests"
       ],
-      "in": "vendor"
+      "in": "vendor/"
     }
   ],
   "compactors": [
